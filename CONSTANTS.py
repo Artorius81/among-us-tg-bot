@@ -7,6 +7,12 @@ admins = {}
 game_over = False
 waiting_for_admin_password = set()
 
+sad_emoji = "\U0001F47D"  # Грустный эмодзи
+happy_emoji = "\U0001F9D0"  # Веселый эмодзи
+
+contestant_name = {}
+contestant_color = {}
+
 participants_new = {}
 participants = {}
 

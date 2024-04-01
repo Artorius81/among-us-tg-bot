@@ -11,7 +11,9 @@ def main(bot):
     print(f"Код для починки системы вентиляции кислорода: {formatted_random_number}")
 
     def generate_player_list():
-        player_list = "\n".join([f"{index + 1}. {name}" for index, name in enumerate(first_name_to_id.keys())])
+        player_list = "\n".join(
+            [f"{index + 1}. {name} ({contestant_color.get(name, 'неизвестный цвет')})" for index, name in
+             enumerate(contestant_name.keys())])
         return player_list if player_list else "Список игроков пуст."
 
     @bot.message_handler(func=lambda message: message.text == "Показать всех игроков")
@@ -19,27 +21,49 @@ def main(bot):
         player_list = generate_player_list()
         bot.send_message(message.chat.id, player_list, parse_mode='HTML')
 
-    @bot.message_handler(commands=['start'])
-    def start(message):
-        # user_id = message.chat.id
-        # first_name = message.from_user.first_name
-        # first_name_to_id[first_name] = user_id
+    def save_name(message):
+        name = message.text
+        user_id = message.chat.id
+        contestant_name[name] = user_id
+        print(f"Имена пользователей: {contestant_name}")
+        bot.send_message(message.chat.id, '\U0001F44D <b>Ага, запомнил!</b>\n\nА теперь введи себе цвет.\n<i>Для красоты можно использовать эмодзи.</i>',
+                         parse_mode='HTML')
+        bot.register_next_step_handler(message, save_color)
+
+    def save_color(message):
+        color = message.text
+        user_id = message.chat.id
+        for name, ids in contestant_name.items():
+            if ids == user_id:
+                contestant_color[name] = color
         markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton("Войти в хаб"))
-        bot.send_message(message.chat.id, f"Добро пожаловать в игру, {message.from_user.first_name}!",
-                         reply_markup=markup)
+        print(f"Цвета пользователей: {contestant_color}")
+        bot.send_message(message.chat.id, "\U0001F44D <b>Понял!</b>\n\n<i>Нажми 'Войти в хаб', чтобы присоединиться.</i>",
+                         reply_markup=markup, parse_mode='HTML')
+
+    @bot.message_handler(commands=['start'])
+    def start(message):
+        global game_over
+        if game_over:
+            contestant_name.clear()
+            contestant_color.clear()
+            participants.clear()
+            player_colors.clear()
+            first_name_to_id.clear()
+        game_over = False
+        bot.send_message(message.chat.id,
+                         f"\U0001F4AC <b>Введи себе игровое имя</b>\n\nТак игрокам будет проще понять, кто есть кто.\n<i>Для красоты можно использовать эмодзи.</i>",
+                         parse_mode='HTML')
+        bot.register_next_step_handler(message, save_name)
 
     @bot.message_handler(func=lambda message: message.text == "Войти в хаб")
     def join_game(message):
-        user_id = message.chat.id
-        first_name = message.from_user.first_name
-        first_name_to_id[first_name] = user_id
+        # user_id = message.chat.id
         markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(telebot.types.KeyboardButton("Показать всех игроков"))
         markup.add(telebot.types.KeyboardButton("Ожидаем начало..."))
-        # name = message.chat.first_name
-        # participants_new[message.chat.first_name] = None
-        print(f"Подключенные пользователи: {first_name_to_id}")
+        print(f"Подключенные пользователи: {contestant_name}")
         bot.send_message(message.chat.id, "<b>Ожидаем начало игры...</b>", reply_markup=markup, parse_mode='HTML')
 
     @bot.message_handler(commands=['run'])
@@ -76,7 +100,7 @@ def main(bot):
         if message.text == "Начать игру":
             game_started = 1
             player_list = "\n".join(
-                [f"{index + 1}. {name} - Роль: {role}, Цвет: {player_colors.get(name, 'Не определен')}" for
+                [f"{index + 1}. {name} - Роль: {role}, Цвет: {contestant_color.get(name, 'Не определен')}" for
                  index, (name, role) in
                  enumerate(participants.items())])
             print(f"Игроки: {player_list}")
@@ -88,81 +112,139 @@ def main(bot):
             bot.send_message(message.chat.id, "Нажмите кнопку 'Начать игру', чтобы начать игру.")
 
     def assign_roles(player_count, imposter_count):
-        global player_colors
         roles = ['Экипаж', 'Предатель']
-        players = list(first_name_to_id.keys())
+        players = list(contestant_name.keys())
         imposters = random.sample(players, imposter_count)
-        available_colors = colors.copy()
         for player_id in players:
             role = roles[1] if player_id in imposters else roles[0]
             participants[player_id] = role
-            color = random.choice(available_colors)  # Выбираем случайный цвет из доступных
-            available_colors.remove(color)  # Удаляем выбранный цвет из списка доступных
-            player_colors[player_id] = color  # Сохраняем цвет для игрока
-            print(player_colors)
         print(f"Распределенные роли: {participants}")
 
     def notify_participants(message):
         for first_name, role in participants.items():
-            user_id = first_name_to_id.get(first_name)
+            user_id = contestant_name.get(first_name)
             markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             if role == 'Предатель':
+                emoji = sad_emoji
                 markup.add(telebot.types.KeyboardButton("Саботаж системы вентиляции кислорода"))
                 markup.add(telebot.types.KeyboardButton("Саботаж двигателя"))
                 markup.add(telebot.types.KeyboardButton("Сообщить о трупе"))
             else:
+                emoji = happy_emoji
                 markup.add(telebot.types.KeyboardButton("Сообщить о трупе"))
                 markup.add(telebot.types.KeyboardButton("Созвать собрание"))
             bot.send_message(user_id,
-                             f"\U0001F525 <b>{message}</b> \U0001F525 \n\n<b>Ваша роль:</b> <tg-spoiler>{role}</tg-spoiler>\n\n<b>Ваш цвет:</b> <tg-spoiler>{player_colors[first_name]}</tg-spoiler>",
+                             f"\U0001F525 <b>{message}</b> \U0001F525 \n\n<i>Ваша роль:</i> <tg-spoiler>{role} {emoji}</tg-spoiler>\n\n<i>Ваш цвет:</i> <tg-spoiler>{contestant_color[first_name]}</tg-spoiler>",
                              reply_markup=markup,
                              parse_mode='HTML')
 
     def notify_participants_continue(message):
         for first_name, role in participants.items():
-            user_id = first_name_to_id.get(first_name)
+            user_id = contestant_name.get(first_name)
             if user_id:
                 markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
                 if role == 'Предатель':
+                    emoji = sad_emoji
                     markup.add(telebot.types.KeyboardButton("Саботаж системы вентиляции кислорода"))
                     markup.add(telebot.types.KeyboardButton("Саботаж двигателя"))
                     markup.add(telebot.types.KeyboardButton("Сообщить о трупе"))
                 else:
+                    emoji = happy_emoji
                     markup.add(telebot.types.KeyboardButton("Сообщить о трупе"))
                     markup.add(telebot.types.KeyboardButton("Созвать собрание"))
                 bot.send_message(user_id,
-                                 f"\U0001F525 <b>{message}</b> \U0001F525 \n\n<b>Ваша роль:</b> <tg-spoiler>{role}</tg-spoiler>",
+                                 f"\U0001F525 <b>{message}</b> \U0001F525 \n\n<i>Ваша роль:</i> <tg-spoiler>{role} {emoji}</tg-spoiler>\n\n<i>Ваш цвет:</i> <tg-spoiler>{contestant_color[first_name]}</tg-spoiler>",
                                  reply_markup=markup,
                                  parse_mode='HTML')
 
+    # @bot.message_handler(func=lambda message: message.text == "adm: Продолжить игру")
+    # def continue_game(message):
+    #     global voting_active
+    #
+    #     if not voting_active:
+    #         return
+    #
+    #     # подсчет голосов для каждого участника
+    #     max_votes = 0
+    #     max_voted_players = []
+    #     for player, votes_count in votes.items():
+    #         if votes_count > max_votes:
+    #             max_votes = votes_count
+    #             max_voted_players = [player]
+    #         elif votes_count == max_votes:
+    #             max_voted_players.append(player)
+    #
+    #     # отправка сообщения о результатах голосования
+    #     if max_voted_players:
+    #         if len(max_voted_players) == len(participants):
+    #             send_message_to_all("Принято решение никого не выбрасывать")
+    #             bot.register_next_step_handler(message, notify_participants_continue("Игра продолжается"))
+    #         else:
+    #             for player in max_voted_players:
+    #                 send_message_to_all(f"{player} был выкинут из шлюза большинством голосов.\n\nПомянем.")
+    #
+    #                 # игрок стерт со словаря = выкинут из игры
+    #                 del participants[player]
+    #                 bot.register_next_step_handler(message, notify_participants_continue("Игра продолжается"))
+    #
+    #     voting_active = False
+    #     votes.clear()
+    #
+    #     # Проверка условий победы
+    #     crew_left = any(role == "Экипаж" for role in participants.values())
+    #     traitors_left = any(role == "Предатель" for role in participants.values())
+    #     if not crew_left:
+    #         # Предатели победили
+    #         send_message_to_all(
+    #             "<b>Предатели победили!</b>\n\nВесь личный состав экипажа ликвидирован.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
+    #     elif not traitors_left:
+    #         # Экипаж победил
+    #         send_message_to_all(
+    #             "<b>Экипаж победил!</b>\n\nВсе предатели ликвидированы.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
+    #
+    #     # Убедимся, что кнопка "adm: Продолжить игру" доступна админу после завершения голосования
+    #     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    #     markup.add(telebot.types.KeyboardButton("adm: Продолжить игру"))
+    #     for admin_id in admins:
+    #         bot.send_message(admin_id,
+    #                          "<b>adm: Закончить голосование</b>\n\nНажмите кнопку, чтобы завершить голосование.",
+    #                          reply_markup=markup, parse_mode='HTML')
+    #     bot.register_next_step_handler(message, notify_participants_continue("Игра продолжается"))
+
     @bot.message_handler(func=lambda message: message.text == "adm: Продолжить игру")
     def continue_game(message):
-        global voting_active
+        global voting_active, game_over
 
         if not voting_active:
             return
 
         # подсчет голосов для каждого участника
+
         max_votes = 0
         max_voted_players = []
-        for player, votes_count in votes.items():
-            if votes_count > max_votes:
-                max_votes = votes_count
-                max_voted_players = [player]
-            elif votes_count == max_votes:
-                max_voted_players.append(player)
+
+        if len(votes) != 0:
+            for player, votes_count in votes.items():
+                if votes_count > max_votes:
+                    max_votes = votes_count
+                    max_voted_players = [player]
+                elif votes_count == max_votes:
+                    max_voted_players.append(player)
 
         # отправка сообщения о результатах голосования
         if max_voted_players:
             if len(max_voted_players) == len(participants):
                 send_message_to_all("Принято решение никого не выбрасывать")
-                notify_participants("Игра продолжается")
+                notify_participants_continue("Игра продолжается")
             else:
                 for player in max_voted_players:
                     send_message_to_all(f"{player} был выкинут из шлюза большинством голосов.\n\nПомянем.")
 
-                    # игрок стерт со словаря = выкинут из игры
                     del participants[player]
+                    notify_participants_continue("Игра продолжается")
+        else:
+            send_message_to_all("Принято решение никого не выбрасывать")
+            notify_participants_continue("Игра продолжается")
 
         voting_active = False
         votes.clear()
@@ -172,23 +254,22 @@ def main(bot):
         traitors_left = any(role == "Предатель" for role in participants.values())
         if not crew_left:
             # Предатели победили
+            game_over = True
             send_message_to_all(
                 "<b>Предатели победили!</b>\n\nВесь личный состав экипажа ликвидирован.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
         elif not traitors_left:
             # Экипаж победил
-            send_message_to_all("<b>Экипаж победил!</b>\n\nВсе предатели ликвидированы.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
+            game_over = True
+            send_message_to_all(
+                "<b>Экипаж победил!</b>\n\nВсе предатели ликвидированы.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
 
         # Убедимся, что кнопка "adm: Продолжить игру" доступна админу после завершения голосования
         markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton("adm: Продолжить игру"))
-        for admin_id in admins:
-            bot.send_message(admin_id,
-                             "<b>adm: Закончить голосование</b>\n\nНажмите кнопку, чтобы завершить голосование.",
-                             reply_markup=markup, parse_mode='HTML')
 
     def send_message_to_all(message):
         hide_markup = telebot.types.ReplyKeyboardRemove()
-        for user_id in first_name_to_id.values():
+        for user_id in contestant_name.values():
             bot.send_message(user_id, '\U0001F3C6 ' + message, parse_mode='HTML', reply_markup=hide_markup)
 
         for admin_id in admins:
@@ -199,11 +280,13 @@ def main(bot):
         global voting_active, votes
         voting_active = True
         votes = defaultdict(int)
-        initiator_name = message.chat.first_name
-        for user_id in first_name_to_id.values():
+        for name, ids in contestant_name.items():
+            if message.chat.id == ids:
+                initiator_name = name
+        for user_id in contestant_name.values():
             print(user_id)
             bot.send_message(user_id,
-                             f"\U0001F4AD <i>{initiator_name}</i> созывает собрание! Все в <b>зал собраний!</b>",
+                             f"\U0001F4AD <i>{initiator_name} ({contestant_color.get(initiator_name)})</i> созывает собрание! Все в <b>зал собраний!</b>",
                              parse_mode='HTML')
         show_participants()
 
@@ -212,10 +295,12 @@ def main(bot):
         global voting_active, votes
         voting_active = True
         votes = defaultdict(int)
-        initiator_name = message.chat.first_name
-        for user_id in first_name_to_id.values():
+        for name, ids in contestant_name.items():
+            if message.chat.id == ids:
+                initiator_name = name
+        for user_id in contestant_name.values():
             bot.send_message(user_id,
-                             f"\U0001F4AD <i>{initiator_name}</i> обнаружил труп! Все в <b>зал собраний!</b>",
+                             f"\U0001F4AD <i>{initiator_name} ({contestant_color.get(initiator_name)})</i> обнаружил труп! Все в <b>зал собраний!</b>",
                              parse_mode='HTML')
         show_participants()
 
@@ -223,7 +308,7 @@ def main(bot):
         markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton("Выбрать игрока"))
         markup_adm = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        for user_id in first_name_to_id.values():
+        for user_id in contestant_name.values():
             bot.send_message(user_id,
                              "\U0001F4AD <b>Собрание начато</b>\n\nСейчас вы можете проголосовать (или воздержаться) за того, кого считаете предателем. Или просто кого хотите выкинуть в шлюз.",
                              reply_markup=markup, parse_mode='HTML')
@@ -237,8 +322,9 @@ def main(bot):
     def show_all_participants(message):
         if voting_active:
             markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-            for name in first_name_to_id.keys():
-                markup.add(telebot.types.KeyboardButton(name))
+            for name, color in contestant_color.items():
+                button_text = f"{name} ({color})"
+                markup.add(telebot.types.KeyboardButton(button_text))
             bot.send_message(message.chat.id, "Выберите игрока за которого отдадите свой голос:", reply_markup=markup)
         else:
             bot.send_message(message.chat.id, "Голосование еще не начато или уже завершено.")
@@ -248,15 +334,10 @@ def main(bot):
         global votes, voting_active
         voted_name = message.text
         votes[voted_name] += 1
-        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-        bot.send_message(message.chat.id, f"Вы проголосовали за {voted_name}!")
+        # markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        bot.send_message(message.chat.id, f"Вы проголосовали за '{voted_name}'!")
         hide_markup = telebot.types.ReplyKeyboardRemove()
         bot.send_message(message.chat.id, "Спасибо за ваш голос!", reply_markup=hide_markup)
-        for admin_id in admins:
-            markup.add(telebot.types.KeyboardButton("adm: Продолжить игру"))
-            bot.send_message(admin_id,
-                             "<b>adm: Закончить голосование</b>\n\nНажмите кнопку, чтобы завершить голосование.",
-                             reply_markup=markup, parse_mode='HTML')
 
     def for_admins(admin_id, sabotage_type):
         global sabotage_disabled, game_over
@@ -335,10 +416,10 @@ def main(bot):
     def run_sabotage(sabotage_type):
         global sabotage_disabled
         threads = []
-        all_participants = {**participants, **first_name_to_id}
+        all_participants = {**participants, **contestant_name}
         print(f"Роли: {all_participants}")
         for first_name, role in participants.items():
-            user_id = first_name_to_id.get(first_name)
+            user_id = contestant_name.get(first_name)
             if user_id:
                 thread = th.Thread(target=for_contestants, args=(user_id, role, sabotage_type))
                 threads.append(thread)
@@ -360,7 +441,7 @@ def main(bot):
         while imposters_cooldown > 0 and not game_over:
             t.sleep(1)
             imposters_cooldown -= 1
-            all_imposters = {first_name_to_id[first_name] for first_name, role in participants.items() if
+            all_imposters = {contestant_name[first_name] for first_name, role in participants.items() if
                              role == 'Предатель'}
             for user_id in all_imposters:
                 if not message_sent:
@@ -373,12 +454,12 @@ def main(bot):
                         user_id,
                         message.message_id)
 
-    # def start_imposters_cooldown_timer():
-    #     global imposters_cooldown_thread
-    #     if imposters_cooldown_thread and imposters_cooldown_thread.is_alive():
-    #         imposters_cooldown_thread.cancel()
-    #     imposters_cooldown_thread = th.Timer(0, imposters_cooldown_timer)
-    #     imposters_cooldown_thread.start()
+    def start_imposters_cooldown_timer():
+        global imposters_cooldown_thread
+        if imposters_cooldown_thread and imposters_cooldown_thread.is_alive():
+            imposters_cooldown_thread.cancel()
+        imposters_cooldown_thread = th.Timer(0, imposters_cooldown_timer)
+        imposters_cooldown_thread.start()
 
     @bot.message_handler(func=lambda message: message.text == "Саботаж системы вентиляции кислорода")
     def sabotage_O2(message):
@@ -411,10 +492,8 @@ def main(bot):
             bot.send_message(admin_id, "\U0001F6E0 <b>adm: Саботаж успешно устранён.</b> \n\nТаймеры остановлены.",
                              parse_mode='HTML')
 
-        # all_participants = {**participants, **first_name_to_id}
         for first_name, role in participants.items():
-            user_id = first_name_to_id.get(first_name)
-            # role = participants[first_name]
+            user_id = contestant_name.get(first_name)
             markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
             if role == 'Предатель':
                 markup.add(telebot.types.KeyboardButton("Саботаж системы вентиляции кислорода"))
