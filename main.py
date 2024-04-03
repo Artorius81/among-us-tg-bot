@@ -28,7 +28,7 @@ def main(bot):
         contestant_name[name] = user_id
         print(f"Имена пользователей: {contestant_name}")
         bot.send_message(message.chat.id,
-                         '\U0001F44D <b>Ага, запомнил!</b>\n\nА теперь введи себе цвет.\n\n<i>Для красоты можно использовать эмодзи.</i>',
+                         '\U0001F44D <b>Ага, запомнил!</b>\n\nА теперь введите себе цвет.\n\n<i>Для красоты можно использовать эмодзи.</i>',
                          parse_mode='HTML')
         bot.register_next_step_handler(message, save_color)
 
@@ -42,7 +42,7 @@ def main(bot):
         markup.add(telebot.types.KeyboardButton("Войти в хаб"))
         print(f"Цвета пользователей: {contestant_color}")
         bot.send_message(message.chat.id,
-                         "\U0001F44D <b>Понял!</b>\n\n<i>Нажми 'Войти в хаб', чтобы присоединиться.</i>",
+                         "\U0001F44D <b>Понял!</b>\n\n<i>Нажмите 'Войти в хаб', чтобы присоединиться.</i>",
                          reply_markup=markup, parse_mode='HTML')
 
     @bot.message_handler(commands=['start'])
@@ -56,7 +56,7 @@ def main(bot):
             first_name_to_id.clear()
         game_over = False
         bot.send_message(message.chat.id,
-                         f"\U0001F4AC <b>Введи себе игровое имя</b>\n\nТак игрокам будет проще понять, кто есть кто.\n\n<i>Для красоты можно использовать эмодзи.</i>",
+                         f"\U0001F4AC <b>Введите себе игровое имя</b>\n\nТак игрокам будет проще понять, кто есть кто.\n\n<i>Для красоты можно использовать эмодзи.</i>",
                          parse_mode='HTML')
         bot.register_next_step_handler(message, save_name)
 
@@ -65,7 +65,7 @@ def main(bot):
         # user_id = message.chat.id
         markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(telebot.types.KeyboardButton("Показать всех игроков"))
-        markup.add(telebot.types.KeyboardButton("Ожидаем начало..."))
+        #markup.add(telebot.types.KeyboardButton("Ожидаем начало..."))
         print(f"Подключенные пользователи: {contestant_name}")
         bot.send_message(message.chat.id, "<b>Ожидаем начало игры...</b>", reply_markup=markup, parse_mode='HTML')
 
@@ -224,6 +224,8 @@ def main(bot):
             return
 
         print(len(votes), len(participants))
+        # print(f"Так выглялит словарь votes {votes}")
+        # print(f"Так выглядит словарь {contestant_color}")
 
         # Проверяем, завершено ли голосование
         if len(votes) == len(participants):
@@ -237,9 +239,11 @@ def main(bot):
                 formatted_votes = "\n".join([f"{player}: {count} голос (ов)" for player, count in votes.items()])
                 for admin in admins:
                     bot.send_message(admin, f"<b>adm: Статистика голосов:</b>\n\n{formatted_votes}", parse_mode='HTML', reply_markup=hide_markup)
-                notify_participants_continue("Игра продолжается")
+                #notify_participants_continue("Игра продолжается")
                 del participants[player_to_eliminate]
-                send_message_to_all(f"{player_to_eliminate} был выкинут из шлюза большинством голосов.\n\nПомянем.")
+                if player_to_eliminate in contestant_color.keys():
+                    del contestant_color[player_to_eliminate]
+                send_message_to_all(f"{player_to_eliminate} ({contestant_color.get(player_to_eliminate)}) был выкинут из шлюза большинством голосов.\n\nПомянем.")
                 notify_participants_continue("Игра продолжается")
             else:
                 formatted_votes = "\n".join([f"Игрок {player}: {count} голос (ов)" for player, count in votes.items()])
@@ -253,7 +257,7 @@ def main(bot):
         votes.clear()
 
         # Выводим статистику
-        show_statistics(votes)
+        #show_statistics(votes)
 
         # Проверяем условия победы
         check_victory_conditions()
@@ -278,6 +282,12 @@ def main(bot):
             game_over = True
             send_message_to_all(
                 "<b>Экипаж победил!</b>\n\nВсе предатели ликвидированы.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
+        elif len(participants) == 2:
+            roles = list(participants.values())
+            if roles.count("Экипаж") == 1 and roles.count("Предатель") == 1:
+                game_over = True
+                send_message_to_all(
+                    "<b>Предатели победили!</b>\n\nОстались только два игрока: один экипаж и один предатель.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
 
     # Функция для вывода статистики
     def show_statistics(votes):

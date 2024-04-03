@@ -28,7 +28,6 @@ def vote(votes):
         check_victory_conditions()
 
 
-
 # Функция для вывода статистики
 def show_statistics(votes):
     # Создаем текст статистики
