@@ -70,10 +70,8 @@ def main(bot):
 
     @bot.message_handler(func=lambda message: message.text == "Войти в хаб")
     def join_game(message):
-        # user_id = message.chat.id
         markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(telebot.types.KeyboardButton("Показать всех игроков"))
-        # markup.add(telebot.types.KeyboardButton("Ожидаем начало..."))
         print(f"Подключенные пользователи: {contestant_name}")
         bot.send_message(message.chat.id, "<b>Ожидаем начало игры...</b>", reply_markup=markup, parse_mode='HTML')
 
@@ -168,59 +166,6 @@ def main(bot):
                                  reply_markup=markup,
                                  parse_mode='HTML')
 
-    # @bot.message_handler(func=lambda message: message.text == "adm: Продолжить игру")
-    # def continue_game(message):
-    #     global voting_active
-    #
-    #     if not voting_active:
-    #         return
-    #
-    #     # подсчет голосов для каждого участника
-    #     max_votes = 0
-    #     max_voted_players = []
-    #     for player, votes_count in votes.items():
-    #         if votes_count > max_votes:
-    #             max_votes = votes_count
-    #             max_voted_players = [player]
-    #         elif votes_count == max_votes:
-    #             max_voted_players.append(player)
-    #
-    #     # отправка сообщения о результатах голосования
-    #     if max_voted_players:
-    #         if len(max_voted_players) == len(participants):
-    #             send_message_to_all("Принято решение никого не выбрасывать")
-    #             bot.register_next_step_handler(message, notify_participants_continue("Игра продолжается"))
-    #         else:
-    #             for player in max_voted_players:
-    #                 send_message_to_all(f"{player} был выкинут из шлюза большинством голосов.\n\nПомянем.")
-    #
-    #                 # игрок стерт со словаря = выкинут из игры
-    #                 del participants[player]
-    #                 bot.register_next_step_handler(message, notify_participants_continue("Игра продолжается"))
-    #
-    #     voting_active = False
-    #     votes.clear()
-    #
-    #     # Проверка условий победы
-    #     crew_left = any(role == "Экипаж" for role in participants.values())
-    #     traitors_left = any(role == "Предатель" for role in participants.values())
-    #     if not crew_left:
-    #         # Предатели победили
-    #         send_message_to_all(
-    #             "<b>Предатели победили!</b>\n\nВесь личный состав экипажа ликвидирован.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
-    #     elif not traitors_left:
-    #         # Экипаж победил
-    #         send_message_to_all(
-    #             "<b>Экипаж победил!</b>\n\nВсе предатели ликвидированы.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
-    #
-    #     # Убедимся, что кнопка "adm: Продолжить игру" доступна админу после завершения голосования
-    #     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    #     markup.add(telebot.types.KeyboardButton("adm: Продолжить игру"))
-    #     for admin_id in admins:
-    #         bot.send_message(admin_id,
-    #                          "<b>adm: Закончить голосование</b>\n\nНажмите кнопку, чтобы завершить голосование.",
-    #                          reply_markup=markup, parse_mode='HTML')
-    #     bot.register_next_step_handler(message, notify_participants_continue("Игра продолжается"))
 
     @bot.message_handler(func=lambda message: message.text == "adm: Продолжить игру")
     def continue_game(message):
@@ -232,8 +177,6 @@ def main(bot):
             return
 
         print(len(votes), len(participants))
-        # print(f"Так выглялит словарь votes {votes}")
-        # print(f"Так выглядит словарь {contestant_color}")
 
         # Проверяем, завершено ли голосование
         if len(votes) == len(participants):
@@ -265,9 +208,6 @@ def main(bot):
 
         voting_active = False
         votes.clear()
-
-        # Выводим статистику
-        # show_statistics(votes)
 
         # Проверяем условия победы
         check_victory_conditions()
@@ -380,7 +320,6 @@ def main(bot):
         global votes, voting_active
         voted_name = re.findall(r'(.+?)\s*\(', message.text)[0]
         votes[voted_name] += 1
-        # markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         bot.send_message(message.chat.id, f"Вы проголосовали за '{voted_name}'!")
         hide_markup = telebot.types.ReplyKeyboardRemove()
         bot.send_message(message.chat.id, "Спасибо за ваш голос!", reply_markup=hide_markup)
