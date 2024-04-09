@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import time as t
 import telebot
 import re
@@ -47,6 +49,12 @@ def main(bot):
 
     @bot.message_handler(commands=['start'])
     def start(message):
+        bot.send_message(message.chat.id,
+                         f"Добро пожаловать в <b>Among МиМ</b> ඞ\n\n📜 Несколько советов для наилучшей игры:\n\n<i>❗ чтобы бот был ещё прекраснее, можно использовать эмодзи при вводе имени и цвета</i>\n\n<i>❗ только один из экипажа что-то делает (вводит код, созывает собрание)</i>\n\n<i>❗ только один из предателей что-то делает (устраивает саботаж и т.д)</i>\n\n✅ Вроде всё. Когда будете готовы, выберите команду /connect в меню.\n\nИ не ломайте бота, пожалуйста 🥺",
+                         parse_mode='HTML')
+
+    @bot.message_handler(commands=['connect'])
+    def connect(message):
         global game_over
         if game_over:
             contestant_name.clear()
@@ -65,7 +73,7 @@ def main(bot):
         # user_id = message.chat.id
         markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(telebot.types.KeyboardButton("Показать всех игроков"))
-        #markup.add(telebot.types.KeyboardButton("Ожидаем начало..."))
+        # markup.add(telebot.types.KeyboardButton("Ожидаем начало..."))
         print(f"Подключенные пользователи: {contestant_name}")
         bot.send_message(message.chat.id, "<b>Ожидаем начало игры...</b>", reply_markup=markup, parse_mode='HTML')
 
@@ -238,12 +246,14 @@ def main(bot):
                 player_to_eliminate = max_voted_players[0]
                 formatted_votes = "\n".join([f"{player}: {count} голос (ов)" for player, count in votes.items()])
                 for admin in admins:
-                    bot.send_message(admin, f"<b>adm: Статистика голосов:</b>\n\n{formatted_votes}", parse_mode='HTML', reply_markup=hide_markup)
-                #notify_participants_continue("Игра продолжается")
+                    bot.send_message(admin, f"<b>adm: Статистика голосов:</b>\n\n{formatted_votes}", parse_mode='HTML',
+                                     reply_markup=hide_markup)
+                # notify_participants_continue("Игра продолжается")
                 del participants[player_to_eliminate]
                 if player_to_eliminate in contestant_color.keys():
                     del contestant_color[player_to_eliminate]
-                send_message_to_all(f"{player_to_eliminate} ({contestant_color.get(player_to_eliminate)}) был выкинут из шлюза большинством голосов.\n\nПомянем.")
+                send_message_to_all(
+                    f"{player_to_eliminate} ({contestant_color.get(player_to_eliminate)}) был выкинут из шлюза большинством голосов.\n\nПомянем.")
                 notify_participants_continue("Игра продолжается")
             else:
                 formatted_votes = "\n".join([f"Игрок {player}: {count} голос (ов)" for player, count in votes.items()])
@@ -257,7 +267,7 @@ def main(bot):
         votes.clear()
 
         # Выводим статистику
-        #show_statistics(votes)
+        # show_statistics(votes)
 
         # Проверяем условия победы
         check_victory_conditions()
@@ -276,18 +286,18 @@ def main(bot):
             # Предатели победили
             game_over = True
             send_message_to_all(
-                "<b>Предатели победили!</b>\n\nВесь личный состав экипажа ликвидирован.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
+                "<b>Предатели победили!</b>\n\nВесь личный состав экипажа ликвидирован.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;connect</b>")
         elif not traitors_left:
             # Экипаж победил
             game_over = True
             send_message_to_all(
-                "<b>Экипаж победил!</b>\n\nВсе предатели ликвидированы.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
+                "<b>Экипаж победил!</b>\n\nВсе предатели ликвидированы.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;connect</b>")
         elif len(participants) == 2:
             roles = list(participants.values())
             if roles.count("Экипаж") == 1 and roles.count("Предатель") == 1:
                 game_over = True
                 send_message_to_all(
-                    "<b>Предатели победили!</b>\n\nОстались только два игрока: один экипаж и один предатель.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>")
+                    "<b>Предатели победили!</b>\n\nОстались только два игрока: один экипаж и один предатель.\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;connect</b>")
 
     # Функция для вывода статистики
     def show_statistics(votes):
@@ -399,7 +409,7 @@ def main(bot):
             if time_elapsed >= 180:
                 markup = telebot.types.ReplyKeyboardRemove()
                 bot.send_message(admin_id,
-                                 "\U0000231B adm: <b>Время вышло</b>\n\n\U0001F4A9 Экипаж проиграл\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>",
+                                 "\U0000231B adm: <b>Время вышло</b>\n\n\U0001F4A9 Экипаж проиграл\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;connect</b>",
                                  reply_markup=markup, parse_mode='HTML')
                 game_over = True
                 break
@@ -439,7 +449,7 @@ def main(bot):
             if time_elapsed >= 180:
                 markup = telebot.types.ReplyKeyboardRemove()
                 bot.send_message(user_id,
-                                 "\U0000231B <b>Время вышло</b>\n\n\U0001F4A9 Экипаж проиграл\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;start</b>",
+                                 "\U0000231B <b>Время вышло</b>\n\n\U0001F4A9 Экипаж проиграл\n\nСпасибо за игру!\n\nЧтобы начать новую игру, нажмите <b>&#47;connect</b>",
                                  reply_markup=markup, parse_mode='HTML')
                 game_over = True
                 break
